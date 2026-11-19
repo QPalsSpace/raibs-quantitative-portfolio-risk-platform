@@ -1,224 +1,257 @@
-# RAIBS LLC — QUANTITATIVE PORTFOLIO RISK PLATFORM
+# RAIBS Dynamic Portfolio Risk & Optimization Engine
 
-**Quantitative Portfolio Risk Analysis · Financial Engineering · Portfolio Optimization · Decision Intelligence**
+## 1. Objective
 
-[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
-[![Analytics](https://img.shields.io/badge/Focus-Quantitative%20Finance-gold.svg)]()
-[![Platform](https://img.shields.io/badge/Platform-RAIBS%20LLC-black.svg)]()
+The engine estimates time-dependent individual volatility, dynamic correlation, covariance matrices, portfolio volatility and risk contributions, then provides MPT and risk-parity optimization.
 
-## Overview
+Primary identity:
 
-The **RAIBS LLC Quantitative Portfolio Risk Platform** is a Python-based financial analytics and portfolio risk-management solution designed to support quantitative investment analysis, portfolio evaluation, risk measurement and optimization.
+\[
+\Sigma_t = D_t R_t D_t
+\]
 
-The platform combines financial market data processing, statistical volatility modelling, dynamic covariance estimation, portfolio risk analytics and Modern Portfolio Theory (MPT) within an interactive analytical environment.
+and:
 
-Its purpose is to transform financial market data into structured risk indicators, comparative portfolio insights and quantitative decision-support outputs.
+\[
+\sigma_{P,t} = \sqrt{w_t^\top \Sigma_t w_t}.
+\]
 
-Developed under the RAIBS LLC financial analytics initiative, the platform brings together quantitative finance, statistical modelling, data engineering and interactive visualization.
+The design follows a principle of sufficiency: every module must contribute directly to estimation, verification, attribution, optimization, API delivery or operational execution.
 
-## Key Capabilities
+## 2. Chosen quantitative architecture
 
-### 1. Market Data & Analytical Processing
-- Retrieval of historical financial market data through Yahoo Finance (`yfinance`).
-- Processing of adjusted daily asset prices.
-- Calculation and transformation of financial returns.
-- Structured data preparation for portfolio-level analysis.
+1. Adjusted daily prices from a provider adapter.
+2. Simple returns in decimal units.
+3. GARCH(1,1) per asset for conditional volatility.
+4. Standardized GARCH residuals.
+5. EWMA covariance/correlation of standardized residuals.
+6. Dynamic covariance:
+   \(\Sigma_t=D_tR_tD_t\).
+7. Verification covariance models:
+   rolling, EWMA and Ledoit-Wolf.
+8. Portfolio variance and volatility.
+9. Marginal and component risk contributions.
+10. MPT minimum-variance and maximum-Sharpe optimization.
+11. Equal-risk-contribution/risk-parity optimization.
+12. JSON snapshot, FastAPI endpoint and Dash dashboard.
+13. Long-only efficient-frontier analysis using the same historical return and covariance assumptions as MPT.
+14. Continuous runner controlled by an environment variable.
 
-### 2. Quantitative Risk Modelling
-- GARCH-based conditional volatility modelling.
-- EWMA volatility estimation.
-- Dynamic covariance matrix estimation.
-- Portfolio-level risk measurement.
-- Comparative model analysis and dispersion assessment.
-- Model diagnostics and model-risk analysis.
+GARCH is the primary econometric volatility model. The architecture does not call GARCH "machine learning"; ML challengers can be added later only if they materially improve forecasting.
 
-### 3. Portfolio Analytics & Optimization
-- Modern Portfolio Theory (Markowitz framework).
-- Risk Parity portfolio construction.
-- Portfolio risk and performance comparisons.
-- Correlation analysis and diversification assessment.
-- Comparative portfolio ranking and evaluation.
+## 2.1 Efficient-frontier analysis
 
-### 4. Interactive Financial Analytics
-- Dash-based analytical dashboard.
-- Interactive portfolio ranking and comparison.
-- Risk-model comparison and dispersion visualization.
-- Correlation analysis.
-- Portfolio optimization interface.
-- Model diagnostics and model-risk visualization.
+The engine uses the same annualized historical mean-return vector already used by Maximum Sharpe:
 
-## Quantitative Methodology
+\[\mu = 252\,\bar r\].
 
-The platform follows a structured analytical workflow:
+The annual covariance matrix is obtained from the daily primary covariance matrix as:
 
-1. **Market Data Acquisition:** Retrieve historical daily adjusted asset prices.
-2. **Return Calculation:** Transform price observations into financial return series.
-3. **Volatility Estimation:** Apply GARCH and EWMA methodologies.
-4. **Covariance Estimation:** Construct dynamic covariance estimates.
-5. **Portfolio Risk Measurement:** Aggregate asset-level risk estimates into portfolio-level measures.
-6. **Portfolio Optimization:** Apply Modern Portfolio Theory and Risk Parity approaches.
-7. **Analytical Visualization:** Present portfolio comparisons, correlations, rankings and model diagnostics.
+\[\Sigma_{annual}=252\Sigma_{daily}.\]
 
-The methodology is designed to support comparative quantitative analysis rather than rely on a single static risk estimate.
+For a target expected return \(r^*\), the frontier solves:
 
-## System Architecture
+\[\min_w\; w^\top\Sigma_{annual}w\]
 
-The platform separates market-data acquisition, quantitative processing, analytical outputs and dashboard visualization.
+subject to:
 
-**Market Data Layer**
-- Yahoo Finance data integration.
-- Daily adjusted price observations.
-- Data preparation and return calculation.
+\[\sum_i w_i=1,\qquad w_i\ge0,\qquad w^\top\mu=r^*.\]
 
-**Quantitative Modelling Layer**
-- GARCH and EWMA volatility estimation.
-- Dynamic covariance modelling.
-- Portfolio risk calculations.
-- Modern Portfolio Theory.
-- Risk Parity optimization.
+The snapshot now exposes `expected_returns`, `expected_return` for each workbook portfolio, `optimization_metrics`, and `efficient_frontier`. The Dash dashboard presents these through a discreet **EFFICIENCY ANALYSIS** button and modal rather than adding another permanent navigation tab.
 
-**Output Layer**
-- Structured analytical snapshots.
-- JSON-based data exchange.
-- Portfolio and model-level analytical results.
+This is an analytical risk-return view, not a claim that historical mean returns are reliable forecasts. The interpretation should therefore remain conditional on the return-estimation methodology, covariance model, constraints, turnover, liquidity and concentration controls.
 
-**Presentation Layer**
-- Interactive Dash dashboard.
-- Plotly visualizations.
-- Portfolio rankings and comparative analysis.
-- Risk diagnostics and optimization views.
+## 3. Windows + Visual Studio Code: first deployment
 
-## Technology Stack
+### Recommended environment
 
-| Category | Technologies |
-|---|---|
-| Programming | Python 3.11 |
-| Numerical Computing | NumPy, SciPy |
-| Data Analysis | Pandas |
-| Statistical & Machine Learning Tools | scikit-learn, arch |
-| Financial Market Data | yfinance |
-| Visualization | Plotly |
-| Interactive Dashboard | Dash |
-| API Development | FastAPI, Pydantic |
-| Data Exchange | JSON |
+Use **Python 3.11** for the first deployment. The application is ordinary Python modules; Jupyter is optional and is installed only because it is useful for research diagnostics.
 
-## Project Structure
+### Method A — VS Code integrated PowerShell terminal
 
-The principal application components include:
+Open VS Code, open this project folder, then:
 
-```text
-RAIBS_PORTFOLIO_RISK_ENGINE/
-│
-├── app/
-│   ├── dashboard.py
-│   └── assets/
-│       └── raibs-llc_logo.png
-│
-├── data/
-│   └── adapters/
-│       └── yfinance_adapter.py
-│
-├── outputs/
-│   └── latest_snapshot.json
-│
-├── requirements.txt
-└── README.md
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+python -m ipykernel install --user --name raibs-risk --display-name "Python (RAIBS Risk)"
 ```
 
-*The structure above illustrates the principal components documented for the project. Additional modules and directories may be present in the complete implementation.*
+If PowerShell blocks activation:
 
-## Installation & Execution
-
-### Requirements
-
-- Python 3.11 or compatible environment.
-- pip package manager.
-- Internet connectivity for Yahoo Finance market-data retrieval.
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/YOUR-GITHUB-USERNAME/raibs-quantitative-portfolio-risk-platform.git
-
-cd raibs-quantitative-portfolio-risk-platform
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-### 2. Create a virtual environment
+Then activate again.
 
-```bash
-python -m venv .venv
-```
+Select the interpreter:
 
-Activate the environment:
+**Ctrl+Shift+P → Python: Select Interpreter → `.venv\Scripts\python.exe`**
 
-**Windows**
+For notebooks:
 
-```bash
+**Ctrl+Shift+P → Notebook: Select Notebook Kernel → `Python (RAIBS Risk)`**
+
+### Method B — VS Code Command Prompt terminal
+
+```cmd
+py -3.11 -m venv .venv
 .venv\Scripts\activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+python -m ipykernel install --user --name raibs-risk --display-name "Python (RAIBS Risk)"
 ```
 
-**Linux / macOS**
+### Method C — Anaconda/Miniconda
 
-```bash
-source .venv/bin/activate
+```powershell
+conda create -n raibs-risk python=3.11 -y
+conda activate raibs-risk
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m ipykernel install --user --name raibs-risk --display-name "Python (RAIBS Risk)"
 ```
 
-### 3. Install dependencies
+For this project, do not mix a Conda environment and `.venv` accidentally. Pick one environment per project.
 
-```bash
-pip install -r requirements.txt
+## 4. VS Code extensions
+
+Install:
+
+- Python
+- Pylance
+- Jupyter
+- Python Debugger
+- GitLens (optional)
+
+The project does **not** require a special kernel to run `.py` modules. A kernel is required only for Jupyter notebooks.
+
+## 5. First execution
+
+From the project root:
+
+```powershell
+python run_once.py
 ```
 
-### 4. Launch the analytical dashboard
-
-Ensure that the required analytical snapshot is available at:
+This downloads the configured historical sample, fits the GARCH models, constructs the dynamic covariance matrix and writes:
 
 ```text
 outputs/latest_snapshot.json
 ```
 
-Then execute:
+Then launch the dashboard:
 
-```bash
+```powershell
 python app/dashboard.py
 ```
 
-The dashboard will display its local access address in the terminal.
+For the API:
 
+```powershell
+uvicorn api.main:app --reload
+```
 
-## Development Principles
+Continuous operation:
 
-The platform is developed around the following principles:
+```powershell
+python runner.py
+```
 
-- Quantitative rigor and methodological transparency.
-- Separation of data acquisition, modelling and visualization.
-- Reproducibility of analytical workflows.
-- Comparative assessment of risk models.
-- Modular software architecture.
-- Practical financial decision support.
+The refresh interval is controlled by:
 
-## Scope & Limitations
+```text
+RAIBS_REFRESH_SECONDS
+```
 
-- Market-data processing currently focuses on historical daily observations.
-- Intraday and real-time streaming capabilities are not part of the documented implementation.
-- Historical model estimates are subject to market-data quality, model assumptions and parameter uncertainty.
-- Portfolio optimization results depend on the selected inputs, constraints and modelling assumptions.
-- Outputs are analytical tools and do not constitute investment advice or guarantees of future performance.
+Do not interpret a 10-second loop against daily Yahoo data as true intraday risk. For production daily risk, schedule a post-close run. True intraday risk requires an intraday-capable data feed and appropriate market-calendar handling.
 
-## Author & Project Ownership
+## 6. Validation
 
-**RAIBS LLC**  
-Quantitative Finance · Financial Risk Analytics · Business Intelligence
+Run:
 
-**Project Development:** Lucas Rova Bagilet  
-Founder | Head of Finance Transformation, BI & Executive Analytics
+```powershell
+python -m compileall .
+```
 
-**Professional Portfolio:**  
-https://www.credly.com/users/lucas-rova-bagilet
+and, if pytest is installed:
 
-**Organization:**  
-https://raibs-llc.com/
+```powershell
+python -m pytest -q
+```
 
----
+Check that:
 
-*© RAIBS LLC. All rights reserved. Unless expressly stated otherwise, publication of this repository does not grant permission to reproduce, redistribute, commercially exploit or create derivative works from its contents.*
+- portfolio weights sum to 1;
+- covariance matrices are symmetric;
+- portfolio variance is non-negative up to numerical tolerance;
+- risk contributions sum to portfolio volatility;
+- optimization weights sum to 1 and respect bounds;
+- snapshot timestamp advances on each successful run.
+
+## 7. Unit conventions
+
+Prices are in provider currency.
+
+Returns are decimal:
+
+\[
+r_t = \frac{P_t}{P_{t-1}}-1.
+\]
+
+GARCH is fitted to percentage returns for numerical convention:
+
+\[
+100r_t.
+\]
+
+The forecast is converted back to decimal volatility before covariance construction.
+
+Daily covariance has units of decimal-return squared. Annualized volatility is:
+
+\[
+\sigma_{\text{annual}}=\sigma_{\text{daily}}\sqrt{252}.
+\]
+
+Never annualize twice.
+
+## 8. Operational architecture
+
+```text
+Provider
+   ↓
+Data Adapter
+   ↓
+Prices → Returns
+   ↓
+GARCH Volatility ─────────┐
+   ↓                      │
+Standardized Residuals    │
+   ↓                      │
+EWMA Correlation ─────────┤
+                          ↓
+                    Σ_t = D_t R_t D_t
+                          ↓
+       ┌──────────────────┼──────────────────┐
+       ↓                  ↓                  ↓
+Portfolio Risk      Verification       Optimization
+       ↓                  ↓                  ↓
+       └──────────────────┼──────────────────┘
+                          ↓
+                    JSON Snapshot
+                     ↙          ↘
+                  Dash          API
+```
+
+## 9. Provider abstraction
+
+`data/adapters/yfinance_adapter.py` is deliberately isolated. A later institutional provider should implement the same conceptual interface without rewriting the risk engine.
+
+## 10. Portfolio test set
+
+The workbook contains 31 cases. P01–P30 reproduce the supplied compositions. P31 is added as a Risk-Parity Candidate to provide a dedicated test case for equal-risk-contribution optimization.
+
+The workbook is therefore an input specification, not a claim that P28/P29/P31 are already optimized portfolios. The optimization engine computes the optimized weights from the current covariance/return estimates.
